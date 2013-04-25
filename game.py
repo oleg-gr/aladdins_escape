@@ -28,7 +28,8 @@ class Platform(pygame.sprite.Sprite):
         self.rect.left = left
         self.rect.top = top
         self.tech_sprite_lower = Floor(self.rect.width - 34,self.rect.left + 17,self.rect.top - 1)
-        self.tech_sprite_upper = Floor(self.rect.width - 34,self.rect.left + 17,self.rect.top - 51) #dimensions of the character sprite + some space for falspeed
+        self.tech_sprite_upper = Floor(self.rect.width - 34,self.rect.left + 17,self.rect.top - 51)
+        #dimensions of the character sprite + some space for falspeed
 
 class Coin(pygame.sprite.Sprite):
     def __init__(self,left,top):
@@ -40,8 +41,10 @@ class Coin(pygame.sprite.Sprite):
         self.wait = 0
         self.die = False
 
-    def collect(self):
+    def collect(self,sound):
         self.image = pygame.transform.scale(self.image, (22, 22))
+        if not self.die:
+            sound.play()
         self.die = True
         
     def update(self):
@@ -113,7 +116,11 @@ class Aladdin (pygame.sprite.Sprite):
     def __init__ (self, game, level, rock_frequency, rock_anticipation):
         pygame.sprite.Sprite.__init__(self)
         self.stay = pygame.image.load('res/aladdin.png')
-        self.frames = [pygame.image.load('res/aladdin.png'),pygame.image.load('res/aladdin1.png'),pygame.image.load('res/aladdin2.png'),pygame.image.load('res/aladdin3.png'),pygame.image.load('res/aladdin4.png'),pygame.image.load('res/aladdin5.png'),pygame.image.load('res/aladdin6.png'),pygame.image.load('res/aladdin7.png'),pygame.image.load('res/aladdin8.png')]
+        self.frames = [pygame.image.load('res/aladdin.png'),pygame.image.load('res/aladdin1.png'),\
+                       pygame.image.load('res/aladdin2.png'),pygame.image.load('res/aladdin3.png'),\
+                       pygame.image.load('res/aladdin4.png'),pygame.image.load('res/aladdin5.png'),\
+                       pygame.image.load('res/aladdin6.png'),pygame.image.load('res/aladdin7.png'),\
+                       pygame.image.load('res/aladdin8.png')]
         self.frame = 0
         self.image = self.stay
 
@@ -124,7 +131,7 @@ class Aladdin (pygame.sprite.Sprite):
         self.jumpduration = 4
         
         self.x = 0
-        self.y = 260
+        self.y = 210
         self.vx = 0
         self.vy = self.falspeed
         self.rect = self.image.get_rect()
@@ -159,8 +166,9 @@ class Aladdin (pygame.sprite.Sprite):
         
 
 
-    def jump(self):
+    def jump(self, sound):
         if self.jumpable:
+            sound.play()
             self.jumptimer = 0
             self.jumping = True
         
@@ -250,6 +258,19 @@ def build_highscores(names):
         
 def newgame(level):
     global game, times, frame
+    if level == 1:
+        pygame.mixer.music.fadeout(100)
+        pygame.mixer.music.load('res/game_bg.mp3')
+        pygame.mixer.music.set_volume(volume / 5.0)
+        pygame.mixer.music.play(-1, 0.0)
+        rock_frequency = 40
+        rock_anticipation = 50
+        platforms = [Platform (100, 100), Platform (40, 150), Platform (120, 180), Platform (200,200)]        
+        #to put coins on platforms: (x+16,x-18)  
+        coins = [Coin(116,82), Coin(56,132), Coin(136,162), Coin (216,182), Coin (300,98)]
+        times = []
+        game = Game (level, platforms , coins, rock_frequency, rock_anticipation)
+        
     if level == 2:
         times.append(round(game.aladdin.t,1))
         game = Game (level, [Platform (100, 100), Platform (40, 150), Platform (120, 180), Platform (200,200)],\
@@ -263,11 +284,14 @@ def newgame(level):
     if level == 4:
         times.append(round(game.aladdin.t,1))
         frame = 'win'
+        #win sound first
+        pygame.mixer.music.fadeout(50)
+        win_s.play()
 
 
 
 def main():
-    global game, times, frame,text
+    global game, times, frame, text, volume, win_s
 #initializing the graphics
     pygame.init()
     pygame.font.init()
@@ -305,31 +329,54 @@ def main():
     high = pygame.image.load('res/high_scores.png')
     names = []
 
-    #to put coins on platforms: (x+16,x-18)   
-    platforms = [Platform (100, 100), Platform (40, 150), Platform (120, 180), Platform (200,200)]
-    coins = [Coin(116,82), Coin(56,132), Coin(136,162), Coin (216,182), Coin (300,98)]
-    rock_frequency = 40
-    rock_anticipation = 50
-    
-    level = 1
-
-    menu = [0,pygame.image.load('res/menu1.png'), pygame.image.load('res/menu2.png'), pygame.image.load('res/menu3.png'),pygame.image.load('res/menu4.png')]
-    over = [0,pygame.image.load('res/game_over1.png'),pygame.image.load('res/game_over2.png'),pygame.image.load('res/game_over3.png')]
+    menu = [0,pygame.image.load('res/menu1.png'), pygame.image.load('res/menu2.png'),\
+            pygame.image.load('res/menu3.png'),pygame.image.load('res/menu4.png'),\
+            pygame.image.load('res/menu5.png')]
+    over = [0,pygame.image.load('res/game_over1.png'),pygame.image.load('res/game_over2.png'),\
+            pygame.image.load('res/game_over3.png')]
     frame = 'menu'
 
-        
+#options
+    options = [0,pygame.image.load('res/options1.png'),pygame.image.load('res/options2.png'),pygame.image.load('res/options3.png'),\
+               pygame.image.load('res/options4.png')]
+    musicon = 1
+    sfxon = 1
+    onoffpick = [pygame.image.load('res/sound_pick_off.png'),pygame.image.load('res/sound_pick_on.png')]
+    onoffunpick = [pygame.image.load('res/sound_unpick_off.png'),pygame.image.load('res/sound_unpick_on.png')]
+    volume = 5
+    volumepick = [0,pygame.image.load('res/volume_pick_0.png'),pygame.image.load('res/volume_pick_20.png'),\
+                  pygame.image.load('res/volume_pick_40.png'),pygame.image.load('res/volume_pick_60.png'),\
+                  pygame.image.load('res/volume_pick_80.png'),pygame.image.load('res/volume_pick_100.png')]
+    volumeunpick = [0,pygame.image.load('res/volume_unpick_0.png'),pygame.image.load('res/volume_unpick_20.png'),\
+                  pygame.image.load('res/volume_unpick_40.png'),pygame.image.load('res/volume_unpick_60.png'),\
+                  pygame.image.load('res/volume_unpick_80.png'),pygame.image.load('res/volume_unpick_100.png')]
+
+#about
+    story = [1, pygame.image.load('res/story1.png'),pygame.image.load('res/story2.png')]
+    rules = [0,pygame.image.load('res/rules1.png'),pygame.image.load('res/rules2.png'),pygame.image.load('res/rules3.png')]
+    about = [0, pygame.image.load('res/about1.png'),pygame.image.load('res/about2.png')]
 
 #music
-    """
-    pygame.mixer.music.load('res/background.mp3')
-    pygame.mixer.music.play(-1, 0.0)
-    """
 
+    pygame.mixer.music.load('res/menu_bg.mp3')
+    pygame.mixer.music.play(-1, 0.0)
+
+#SFX
+    coin_s = pygame.mixer.Sound('res/coin.wav')
+    tick_s = pygame.mixer.Sound('res/tick.wav')
+    jump_s = pygame.mixer.Sound('res/jump.aiff')
+    over_s = pygame.mixer.Sound('res/over.aiff')
+    win_s = pygame.mixer.Sound('res/win.mp3')
+    tick_s.set_volume(0.5) #adjusting loud sound
+    jump_s.set_volume(0.25)
+    
 #main game loop
     while running:
 
         if frame == "game":
             if pygame.sprite.spritecollideany(game.aladdin, game.rocks):#quit if the character's killed
+                    pygame.mixer.music.fadeout(200)
+                    over_s.play()
                     frame = "over"
 
             
@@ -344,7 +391,12 @@ def main():
             
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_UP:
-                        game.aladdin.jump()
+                        game.aladdin.jump(jump_s)
+                    if event.key == pygame.K_ESCAPE:
+                        frame = "menu"
+                        pygame.mixer.music.load('res/menu_bg.mp3')
+                        pygame.mixer.music.set_volume(volume / 5.0)
+                        pygame.mixer.music.play(-1, 0.0)
 
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
@@ -382,8 +434,7 @@ def main():
 
             for item in game.coins:
                 if pygame.sprite.collide_rect(game.aladdin,item):
-                    item.collect()
-                    
+                    item.collect(coin_s)
                     
         
 
@@ -425,19 +476,19 @@ def main():
                     
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_DOWN:
+                        tick_s.play()
                         menu[0] += 1
-                        menu[0] %= 4
+                        menu[0] %= 5
                     if event.key == pygame.K_UP:
+                        tick_s.play()
                         menu[0] -= 1
-                        menu[0] %= 4
+                        menu[0] %= 5
                     if event.key == pygame.K_RETURN:
                         if menu[0] == 0:
-                            #instantiate new coins - old are killed by kill() method when collected
-                            coins = [Coin(116,82), Coin(56,132), Coin(136,162), Coin (216,182), Coin (300,98)]
-                            #reset time
-                            time = []
-                            game = Game (1, platforms, coins, rock_frequency, rock_anticipation)
+                            newgame(1)
                             frame = "game"
+                        if menu[0] == 1:
+                            frame = "story"
                         if menu[0] == 2:
                             #file can be read() only once
                             highscores.close()
@@ -446,6 +497,9 @@ def main():
                             frame = "high"
                             menu[0] == 0
                         if menu[0] == 3:
+                            options[0] = 0
+                            frame = "options"
+                        if menu[0] == 4:
                             running = False
                             pygame.mixer.music.stop()
                             highscores.close()
@@ -469,18 +523,23 @@ def main():
                     
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RIGHT:
+                        tick_s.play()
                         over[0] += 1
                         over[0] %= 3
                     if event.key == pygame.K_LEFT:
+                        tick_s.play()
                         over[0] -= 1
                         over[0] %= 3
                     if event.key == pygame.K_RETURN:
                         if over[0] == 0:
-                            coins = [Coin(116,82), Coin(56,132), Coin(136,162), Coin (216,182), Coin (300,98)]
-                            time = []
-                            game = Game (1, platforms , coins, rock_frequency, rock_anticipation)
+                            newgame(1)
+                            over_s.fadeout(50)
                             frame = "game"
                         if over[0] == 1:
+                            over_s.fadeout(50)
+                            pygame.mixer.music.load('res/menu_bg.mp3')
+                            pygame.mixer.music.set_volume(volume / 5.0)
+                            pygame.mixer.music.play(-1, 0.0)
                             frame = "menu"
                             over[0] = 0
                         if over[0] == 2:
@@ -509,29 +568,37 @@ def main():
                     if event.key == pygame.K_BACKSPACE and len(letters)>0:
                         letters.pop()
                     if event.key == pygame.K_RIGHT:
+                        tick_s.play()
                         win[0] += 1
                         win[0] %= 2
                     if event.key == pygame.K_LEFT:
+                        tick_s.play()
                         win[0] -= 1
                         win[0] %= 2
                     if event.key == pygame.K_RETURN:
-                        if win[0] == 1:
-                            frame = "menu"
-                            times = []
-                            win[0] = 0
                         if win[0] == 0:
                             if len(letters) > 3:
                                 frame = "high"
                                 highscores.close()
                                 highscores = open('res/highscores.txt', 'a')
                                 highscores.write(''.join(letters) + ':' + str(sum(times))+'\n')
-                                times = []
                                 highscores.close()
                                 highscores = open('res/highscores.txt', 'r')
                                 names = build_highscores([x.split(':') for x in highscores.read().rstrip('\n').split('\n')])
                                 limit = text_big.render ('',False, (255,0,0))
+                                win_s.fadeout(50)
+                                pygame.mixer.music.load('res/menu_bg.mp3')
+                                pygame.mixer.music.set_volume(volume / 5.0)
+                                pygame.mixer.music.play(-1, 0.0)
                             else:
                                 limit = text_big.render ('___',False, (255,0,0))
+                        if win[0] == 1:
+                            win[0] = 0
+                            frame = "menu"
+                            win_s.fadeout(50)
+                            pygame.mixer.music.load('res/menu_bg.mp3')
+                            pygame.mixer.music.set_volume(volume / 5.0)
+                            pygame.mixer.music.play(-1, 0.0)
 
                                  
                     
@@ -572,8 +639,178 @@ def main():
             screen.blit(names[3][1],(300,190))
             screen.blit(names[4][0],(160,210))
             screen.blit(names[4][1],(300,210))
-                    
+
+        if frame == "options":
             
+           for event in pygame.event.get():
+            if event.type == QUIT: 
+                running = False
+                pygame.mixer.music.stop()
+                pygame.font.quit()
+                highscores.close()
+                pygame.quit()
+                sys.exit()
+                
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_DOWN:
+                    tick_s.play()
+                    options[0] += 1
+                    options[0] %= 4
+                if event.key == pygame.K_UP:
+                    tick_s.play()
+                    options[0] -= 1
+                    options[0] %= 4
+                if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
+                    if options[0] == 0:
+                        tick_s.play()
+                        musicon += 1
+                        musicon %= 2
+                    if options[0] == 1:
+                        tick_s.play()
+                        sfxon += 1
+                        sfxon %= 2
+                if options[0] == 2:
+                    if event.key == pygame.K_LEFT and volume > 0:
+                        tick_s.play()
+                        volume -= 1
+                    if event.key == pygame.K_RIGHT and volume < 5:
+                        tick_s.play()
+                        volume += 1
+                
+                if event.key == pygame.K_RETURN:
+                    if options[0] == 3:
+                        frame = "menu"
+                        
+            screen.blit(options[options[0]+1], (0,0))
+
+            if options[0] == 0:
+                screen.blit(onoffpick[musicon],(274,126))
+            else:
+                screen.blit(onoffunpick[musicon],(274,126))
+                
+            if options[0] == 1:
+                screen.blit(onoffpick[sfxon],(274,160))
+            else:
+                screen.blit(onoffunpick[sfxon],(274,160))
+
+            if options[0] == 2:
+                screen.blit(volumepick[volume+1],(274,194))
+            else:
+                screen.blit(volumeunpick[volume+1],(274,194))
+
+            if musicon == 0:
+                pygame.mixer.music.set_volume(0.0)
+            else:
+                pygame.mixer.music.set_volume(volume/5.0)
+                
+#!!!all sfx volume
+            if sfxon == 0:
+                coin_s.set_volume(0.0)
+                tick_s.set_volume(0.0)
+                jump_s.set_volume(0.0)
+                over_s.set_volume(0.0)
+                win_s.set_volume(0.0)
+            else:
+                coin_s.set_volume(volume/5.0)
+                tick_s.set_volume(volume/10.0)
+                jump_s.set_volume(volume/20.0)
+                over_s.set_volume(volume/5.0)
+                win_s.set_volume(volume/5.0)
+                
+        if frame == "story":
+
+            for event in pygame.event.get():
+
+                if event.type == QUIT: 
+                    running = False
+                    pygame.mixer.music.stop()
+                    pygame.font.quit()
+                    highscores.close()
+                    pygame.quit()
+                    sys.exit()
+
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
+                        tick_s.play()
+                        story[0] += 1
+                        story[0] %= 2
+                    if event.key == pygame.K_RETURN:
+                        if story[0] == 0:
+                            frame = "menu"
+                        if story[0] == 1:
+                            tick_s.play()
+                            frame = "rules"
+                            rules[0] = 2
+
+        
+            screen.blit(story[story[0]+1], (0,0))
+            
+        if frame == "about":
+
+            for event in pygame.event.get():
+
+                if event.type == QUIT: 
+                    running = False
+                    pygame.mixer.music.stop()
+                    pygame.font.quit()
+                    highscores.close()
+                    pygame.quit()
+                    sys.exit()
+
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
+                        tick_s.play()
+                        about[0] += 1
+                        about[0] %= 2
+                    if event.key == pygame.K_RETURN:
+                        if about[0] == 0:
+                            frame = "menu"
+                        if about[0] == 1:
+                            tick_s.play()
+                            frame = "rules"
+                            rules[0] = 1
+
+        
+            screen.blit(about[about[0]+1], (0,0))
+
+
+        if frame == "rules":
+
+            for event in pygame.event.get():
+
+                if event.type == QUIT: 
+                    running = False
+                    pygame.mixer.music.stop()
+                    pygame.font.quit()
+                    highscores.close()
+                    pygame.quit()
+                    sys.exit()
+
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RIGHT:
+                        tick_s.play()
+                        rules[0] += 1
+                        rules[0] %= 3
+                    if event.key == pygame.K_LEFT:
+                        tick_s.play()
+                        rules[0] -= 1
+                        rules[0] %= 3                        
+                    if event.key == pygame.K_RETURN:
+                        if rules[0] == 0:
+                            frame = "menu"
+                        if rules[0] == 1:
+                            tick_s.play()
+                            frame = "story"
+                            story[0] = 1
+                        if rules[0] == 2:
+                            tick_s.play()
+                            frame = "about"
+                            about[0] = 1
+
+        
+            screen.blit(rules[rules[0]+1], (0,0))
+            
+                        
         pygame.display.update()
         fpsClock.tick(FPS)
 
