@@ -5,9 +5,9 @@ Oleg Grishin
 """
 
 import pygame, sys
-from pygame.locals import *
 import time
 from random import *
+from pygame.locals import *
 
 # Floor class handles collide events for the character to stay on the floor. Not visible
 
@@ -110,7 +110,7 @@ class Aladdin (pygame.sprite.Sprite):
     
     coins = 1
     
-    def __init__ (self):
+    def __init__ (self, game, level, rock_frequency, rock_anticipation):
         pygame.sprite.Sprite.__init__(self)
         self.stay = pygame.image.load('res/aladdin.png')
         self.frames = [pygame.image.load('res/aladdin.png'),pygame.image.load('res/aladdin1.png'),pygame.image.load('res/aladdin2.png'),pygame.image.load('res/aladdin3.png'),pygame.image.load('res/aladdin4.png'),pygame.image.load('res/aladdin5.png'),pygame.image.load('res/aladdin6.png'),pygame.image.load('res/aladdin7.png'),pygame.image.load('res/aladdin8.png')]
@@ -123,8 +123,8 @@ class Aladdin (pygame.sprite.Sprite):
         self.jumpspeed = -12
         self.jumpduration = 4
         
-        self.x = 450
-        self.y = 150
+        self.x = 0
+        self.y = 260
         self.vx = 0
         self.vy = self.falspeed
         self.rect = self.image.get_rect()
@@ -138,14 +138,24 @@ class Aladdin (pygame.sprite.Sprite):
         self.text = pygame.font.Font('res/font/04B_03__.ttf', 14)
         self.message = self.text.render('' + str(Aladdin.coins) + '/5', False, (255,255,255))
         self.mesrect=self.message.get_rect()
-        self.mesrect.topleft = (373,254)
-        self.text1 = pygame.font.Font('res/font/04B_03__.ttf', 14)
-        self.message1 = self.text1.render('', False, (255,255,255))
+        self.mesrect.topleft = (483,257)
+        self.message1 = self.text.render('', False, (255,255,255))
         self.mesrect1=self.message1.get_rect()
-        self.mesrect1.topleft = (373,269)
+        self.mesrect1.topleft = (483,275)
+        self.level = level
+        if level < 10:
+            self.message2 = self.text.render('level 0' + str(level), False, (255,255,255))
+        else:
+            self.message2 = self.text.render('level ' + str(level), False, (255,255,255))
+        self.mesrect2=self.message2.get_rect()
+        self.mesrect2.topleft = (460,242)
         Aladdin.coins = 0
         self.rocks = []
+        self.globalrocks = game.rocks
         self.rockfrequency = 1
+        self.rock_frequency = rock_frequency
+        self.rock_anticipation = rock_anticipation
+
         
 
 
@@ -167,7 +177,8 @@ class Aladdin (pygame.sprite.Sprite):
         
         if self.x + self.vx in range (0 - self.speed,533 - self.rect.width + self.speed):
             self.x += self.vx
-            
+        elif self.x + self.vx > 533 - self.rect.width + self.speed and Aladdin.coins == 5:
+            newgame(self.level+1)
         
         if self.vy != 0 and self.vx >= 0:
             self.image = self.frames[3]
@@ -189,22 +200,74 @@ class Aladdin (pygame.sprite.Sprite):
         self.y += self.vy
         self.rect.left = self.x
         self.rect.top = self.y
-        self.message = self.text.render('Coins collected: ' + str(Aladdin.coins) + '/5', False, (255,255,255))
+        self.message = self.text.render(str(Aladdin.coins )+ '/5', False, (255,255,255))
         self.t= time.time() - self.start
         self.rockfrequency += 1
-        self.rockfrequency %= 50
+        self.rockfrequency %= self.rock_frequency #lover in order to increase frequency of rocks falling
         if self.rockfrequency == 0:
             self.rockrandom = randint (0, 500)
-            self.rocks.append(Rock(self.rockrandom, 50, 10))
-            rocks.add(self.rocks.pop())
-            
-        self.message1 = self.text1.render('Time: ' + str(round(self.t,1)), False, (255,255,255))
-        
+            self.rocks.append(Rock(self.rockrandom, self.rock_anticipation, 10))
+            self.globalrocks.add(self.rocks.pop())
 
+        self.message1 = self.text.render(str(round(self.t,1)), False, (255,255,255))
         
+        
+class Game():
+    def __init__(self, level, platforms, coins, rock_frequency, rock_anticipation):
+        #instancing the classes
+        #[bottom floor, middle floor, top floor, first stopper, second stopper]
+        self.floor = [Floor(194,0,273),Floor(147,207,248),Floor(190,355,224)]
+        self.stops = [Floor(10,194,261),Floor(10,342,236)]
+        self.coins = coins
+        self.platforms = platforms
+        self.sprites = pygame.sprite.Group(self.platforms,self.coins)
+        self.rocks = pygame.sprite.Group()
+        self.aladdin = Aladdin(self, level, rock_frequency, rock_anticipation)
+        self.character = pygame.sprite.Group(self.aladdin)
+        
+        #technical sprites for platforms
+        """
+        for item in game.platforms:
+        sprites.add(item.tech_sprite_lower,item.tech_sprite_upper)
+        """
+    
+        self.floorsprites = pygame.sprite.Group(self.floor)
+        self.stopsprites = pygame.sprite.Group(self.stops)
+
+def compare(x,y):
+    if float(x[1]) > float (y[1]):
+        return 1
+    else:
+        return -1
+
+def build_highscores(names):
+    names = sorted(names, cmp=compare)
+    table = []
+
+    for i in range(5):
+        table.append ([text.render(names[i][0], False, (255,255,255)),text.render(names [i][1] + 's', False, (255,255,255))])
+    return table
+        
+def newgame(level):
+    global game, times, frame
+    if level == 2:
+        times.append(round(game.aladdin.t,1))
+        game = Game (level, [Platform (100, 100), Platform (40, 150), Platform (120, 180), Platform (200,200)],\
+                    [Coin(114,82), Coin(56,132), Coin(136,162), Coin (216,182), Coin (300,98)],\
+                     20, 30)
+    if level == 3:
+        times.append(round(game.aladdin.t,1))
+        game = Game (level, [Platform (100, 100), Platform (40, 150), Platform (120, 180), Platform (200,200)],\
+                    [Coin(114,82), Coin(56,132), Coin(136,162), Coin (216,182), Coin (300,98)],\
+                     10, 15)
+    if level == 4:
+        times.append(round(game.aladdin.t,1))
+        frame = 'win'
+
+
 
 def main():
-    global rocks
+    global game, times, frame,text
 #initializing the graphics
     pygame.init()
     pygame.font.init()
@@ -213,130 +276,304 @@ def main():
     height = 300
     width = 533
 
-#possible scaling of the game
+#possible scaling of the game, not implemented
     scale = 2
 
     screen = pygame.display.set_mode((width, height),0,32) #trying out 32 colors
     pygame.display.set_caption("Aladdin's Escape")
     bg = pygame.image.load('res/bg.png').convert()
     screen.blit(bg, (0,0))
+    coin = pygame.image.load('res/coin.png')
+    coin = pygame.transform.scale(coin,(14, 14))
+    timer = pygame.image.load('res/time.png')
+    
+    win = [0,pygame.image.load('res/win1.png'),pygame.image.load('res/win2.png')]
 
 #game
     running = True
-#instancing the classes
-    aladdin = Aladdin()
-    #[bottom floor, middle floor, top floor, first stopper, second stopper]
-    floor = [Floor(194,0,273),Floor(147,207,248),Floor(190,355,224)]
-    stops = [Floor(10,194,261),Floor(10,342,236)]
+
+#to collect total time
+    times = []
+    text = pygame.font.Font('res/font/04B_03__.ttf', 20)
+    text_big = pygame.font.Font('res/font/04B_03__.ttf', 22)
+#name of the player
+    letters = []
+
+#highscores
+    highscores = open('res/highscores.txt', 'r')
+    limit = text_big.render ('',False, (255,0,0))
+    high = pygame.image.load('res/high_scores.png')
+    names = []
+
+    #to put coins on platforms: (x+16,x-18)   
     platforms = [Platform (100, 100), Platform (40, 150), Platform (120, 180), Platform (200,200)]
     coins = [Coin(116,82), Coin(56,132), Coin(136,162), Coin (216,182), Coin (300,98)]
-    #to put coins on platforms: (x+16,x - 18)
-    sprites = pygame.sprite.Group(platforms,coins)
-    character = pygame.sprite.Group(aladdin)
-    rocks = pygame.sprite.Group()
+    rock_frequency = 40
+    rock_anticipation = 50
+    
+    level = 1
 
-    #technical sprites for platforms
-    """
-    for item in platforms:
-        sprites.add(item.tech_sprite_lower,item.tech_sprite_upper)
-    """
-        
-    floorsprites = pygame.sprite.Group(floor)
-    stopsprites = pygame.sprite.Group(stops)
+    menu = [0,pygame.image.load('res/menu1.png'), pygame.image.load('res/menu2.png'), pygame.image.load('res/menu3.png'),pygame.image.load('res/menu4.png')]
+    over = [0,pygame.image.load('res/game_over1.png'),pygame.image.load('res/game_over2.png'),pygame.image.load('res/game_over3.png')]
+    frame = 'menu'
+
         
 
 #music
-    
+    """
     pygame.mixer.music.load('res/background.mp3')
     pygame.mixer.music.play(-1, 0.0)
-    
+    """
 
 #main game loop
     while running:
-    
-        if pygame.sprite.spritecollideany(aladdin, rocks):#quit if the character's killed
-                running = False
-                pygame.mixer.music.stop()
-                pygame.font.quit()
-                pygame.quit()
-                sys.exit()
-        
-        for event in pygame.event.get():
-            if event.type == QUIT: 
-                running = False
-                pygame.mixer.music.stop()
-                pygame.font.quit()
-                pygame.quit()
-                sys.exit()
 
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    aladdin.jump()
-
-            elif event.type == pygame.KEYUP:
-                if event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
-                    aladdin.vx = 0
-
-
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
-            aladdin.vx = aladdin.speed
-        elif keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
-            aladdin.vx = -aladdin.speed
-
-
-        collision = pygame.sprite.spritecollide(aladdin, floorsprites, False)
-        if collision:
-            aladdin.vy = 0
-            aladdin.y = collision[0].rect.top - aladdin.rect.height + 1
-            aladdin.jumpable = True            
-        else:
-            aladdin.jumpable = False
-            if not aladdin.jumping:
-                aladdin.vy = aladdin.falspeed
-                
-        
-                
-        collision = pygame.sprite.spritecollide(aladdin, stopsprites, False)
-        if collision:
-            aladdin.x = collision[0].rect.left -  aladdin.rect.width
-
-        for item in platforms:
-            if pygame.sprite.collide_rect(aladdin,item.tech_sprite_lower) and pygame.sprite.collide_rect(aladdin,item.tech_sprite_upper):
-                aladdin.vy = 0
-                aladdin.y = item.tech_sprite_lower.rect.top - aladdin.rect.height + 1
-                aladdin.jumpable = True
-
-        for item in coins:
-            if pygame.sprite.collide_rect(aladdin,item):
-                item.collect()
-                
-                
-    
-
+        if frame == "game":
+            if pygame.sprite.spritecollideany(game.aladdin, game.rocks):#quit if the character's killed
+                    frame = "over"
 
             
-        #character group is made to make sure that the character is drawn on top of everything
-        screen.blit(bg, (0,0))
-        sprites.clear(screen,bg)
-        character.clear(screen,bg)
-        rocks.clear(screen,bg)
-        sprites.update()
-        character.update()
-        rocks.update()
-        sprites.draw(screen)
-        character.draw(screen)
-        rocks.draw(screen)
-        screen.blit(aladdin.message,aladdin.mesrect)
-        screen.blit(aladdin.message1,aladdin.mesrect1)
+            for event in pygame.event.get():
+                if event.type == QUIT: 
+                    running = False
+                    pygame.mixer.music.stop()
+                    pygame.font.quit()
+                    highscores.close()
+                    pygame.quit()
+                    sys.exit()
+            
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        game.aladdin.jump()
 
-        #draw technical sprites for debugging
-        """
-        floorsprites.draw(screen)
-        stopsprites.draw(screen)
-        """
+                elif event.type == pygame.KEYUP:
+                    if event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
+                        game.aladdin.vx = 0
 
+
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
+                game.aladdin.vx = game.aladdin.speed
+            elif keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
+                game.aladdin.vx = -game.aladdin.speed
+
+
+            collision = pygame.sprite.spritecollide(game.aladdin, game.floorsprites, False)
+            if collision:
+                game.aladdin.vy = 0
+                game.aladdin.y = collision[0].rect.top - game.aladdin.rect.height + 1
+                game.aladdin.jumpable = True            
+            else:
+                game.aladdin.jumpable = False
+                if not game.aladdin.jumping:
+                    game.aladdin.vy = game.aladdin.falspeed
+                    
+            
+                    
+            collision = pygame.sprite.spritecollide(game.aladdin, game.stopsprites, False)
+            if collision:
+                game.aladdin.x = collision[0].rect.left -  game.aladdin.rect.width
+
+            for item in game.platforms:
+                if pygame.sprite.collide_rect(game.aladdin,item.tech_sprite_lower) and pygame.sprite.collide_rect(game.aladdin,item.tech_sprite_upper):
+                    game.aladdin.vy = 0
+                    game.aladdin.y = item.tech_sprite_lower.rect.top - game.aladdin.rect.height + 1
+                    game.aladdin.jumpable = True
+
+            for item in game.coins:
+                if pygame.sprite.collide_rect(game.aladdin,item):
+                    item.collect()
+                    
+                    
         
+
+
+                
+            #character group is made to make sure that the character is drawn on top of everything
+            screen.blit(bg, (0,0))
+            game.sprites.clear(screen,bg)
+            game.character.clear(screen,bg)
+            game.rocks.clear(screen,bg)
+            game.sprites.update()
+            game.character.update()
+            game.rocks.update()
+            game.sprites.draw(screen)
+            game.character.draw(screen)
+            game.rocks.draw(screen)
+            screen.blit(game.aladdin.message,game.aladdin.mesrect)
+            screen.blit(game.aladdin.message1,game.aladdin.mesrect1)
+            screen.blit(game.aladdin.message2,game.aladdin.mesrect2)
+            screen.blit(coin, (463,256))
+            screen.blit(timer, (463,273))
+
+            #draw technical sprites for debugging
+            """
+            game.floorsprites.draw(screen)
+            game.stopsprites.draw(screen)
+            """
+
+        if frame == "menu":
+            
+            for event in pygame.event.get():
+                if event.type == QUIT: 
+                    running = False
+                    pygame.mixer.music.stop()
+                    pygame.font.quit()
+                    highscores.close()
+                    pygame.quit()
+                    sys.exit()
+                    
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_DOWN:
+                        menu[0] += 1
+                        menu[0] %= 4
+                    if event.key == pygame.K_UP:
+                        menu[0] -= 1
+                        menu[0] %= 4
+                    if event.key == pygame.K_RETURN:
+                        if menu[0] == 0:
+                            #instantiate new coins - old are killed by kill() method when collected
+                            coins = [Coin(116,82), Coin(56,132), Coin(136,162), Coin (216,182), Coin (300,98)]
+                            #reset time
+                            time = []
+                            game = Game (1, platforms, coins, rock_frequency, rock_anticipation)
+                            frame = "game"
+                        if menu[0] == 2:
+                            #file can be read() only once
+                            highscores.close()
+                            highscores = open('res/highscores.txt', 'r')
+                            names = build_highscores([x.split(':') for x in highscores.read().rstrip('\n').split('\n')])
+                            frame = "high"
+                            menu[0] == 0
+                        if menu[0] == 3:
+                            running = False
+                            pygame.mixer.music.stop()
+                            highscores.close()
+                            pygame.font.quit()
+                            pygame.quit()
+                            sys.exit()
+                            
+            
+            screen.blit(menu[menu[0]+1], (0,0))
+
+        if frame == "over":
+            
+            for event in pygame.event.get():
+                if event.type == QUIT: 
+                    running = False
+                    pygame.mixer.music.stop()
+                    highscores.close()
+                    pygame.font.quit()
+                    pygame.quit()
+                    sys.exit()
+                    
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RIGHT:
+                        over[0] += 1
+                        over[0] %= 3
+                    if event.key == pygame.K_LEFT:
+                        over[0] -= 1
+                        over[0] %= 3
+                    if event.key == pygame.K_RETURN:
+                        if over[0] == 0:
+                            coins = [Coin(116,82), Coin(56,132), Coin(136,162), Coin (216,182), Coin (300,98)]
+                            time = []
+                            game = Game (1, platforms , coins, rock_frequency, rock_anticipation)
+                            frame = "game"
+                        if over[0] == 1:
+                            frame = "menu"
+                            over[0] = 0
+                        if over[0] == 2:
+                            running = False
+                            pygame.mixer.music.stop()
+                            pygame.font.quit()
+                            highscores.close()
+                            pygame.quit()
+                            sys.exit()
+
+            screen.blit(over[over[0]+1], (0,0))
+
+        if frame == "win":
+            for event in pygame.event.get():
+                if event.type == QUIT: 
+                    running = False
+                    pygame.mixer.music.stop()
+                    pygame.font.quit()
+                    highscores.close()
+                    pygame.quit()
+                    sys.exit()
+
+                elif event.type == pygame.KEYDOWN:
+                    if len(pygame.key.name(event.key)) == 1 and len(letters) < 8:
+                        letters.append(pygame.key.name(event.key).upper())
+                    if event.key == pygame.K_BACKSPACE and len(letters)>0:
+                        letters.pop()
+                    if event.key == pygame.K_RIGHT:
+                        win[0] += 1
+                        win[0] %= 2
+                    if event.key == pygame.K_LEFT:
+                        win[0] -= 1
+                        win[0] %= 2
+                    if event.key == pygame.K_RETURN:
+                        if win[0] == 1:
+                            frame = "menu"
+                            times = []
+                            win[0] = 0
+                        if win[0] == 0:
+                            if len(letters) > 3:
+                                frame = "high"
+                                highscores.close()
+                                highscores = open('res/highscores.txt', 'a')
+                                highscores.write(''.join(letters) + ':' + str(sum(times))+'\n')
+                                times = []
+                                highscores.close()
+                                highscores = open('res/highscores.txt', 'r')
+                                names = build_highscores([x.split(':') for x in highscores.read().rstrip('\n').split('\n')])
+                                limit = text_big.render ('',False, (255,0,0))
+                            else:
+                                limit = text_big.render ('___',False, (255,0,0))
+
+                                 
+                    
+                    
+
+            score = text.render(str(sum(times)) + 's', False, (255,255,255))
+            name = text_big.render (' '.join(letters),False, (255,255,255))
+
+            screen.blit(win[win[0]+1], (0,0))
+            screen.blit(limit, (322,157))
+            screen.blit(name, (174,182)) 
+            screen.blit(score,(302,102))
+
+        if frame == "high":
+            
+            for event in pygame.event.get():
+                if event.type == QUIT: 
+                    running = False
+                    pygame.mixer.music.stop()
+                    pygame.font.quit()
+                    highscores.close()
+                    pygame.quit()
+                    sys.exit()
+                    
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        frame = "menu"
+
+                
+            screen.blit(high, (0,0))
+            screen.blit(names[0][0],(160,130))
+            screen.blit(names[0][1],(300,130))
+            screen.blit(names[1][0],(160,150))
+            screen.blit(names[1][1],(300,150))
+            screen.blit(names[2][0],(160,170))
+            screen.blit(names[2][1],(300,170))
+            screen.blit(names[3][0],(160,190))
+            screen.blit(names[3][1],(300,190))
+            screen.blit(names[4][0],(160,210))
+            screen.blit(names[4][1],(300,210))
+                    
+            
         pygame.display.update()
         fpsClock.tick(FPS)
 
