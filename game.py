@@ -1,5 +1,5 @@
 """
-    Aladdin's Escape
+Aladdin's Escape
 Final project, Introduction to Computer Science, Fall 2012, NYUAD
 Oleg Grishin
 """
@@ -7,8 +7,9 @@ Oleg Grishin
 import pygame, sys
 from pygame.locals import *
 import time
+from random import *
 
-# Floor classes handle collide events for the character to stay on the floor. Not visible
+# Floor class handles collide events for the character to stay on the floor. Not visible
 
 class Floor(pygame.sprite.Sprite):
     def __init__(self,length,left,top):
@@ -27,8 +28,7 @@ class Platform(pygame.sprite.Sprite):
         self.rect.left = left
         self.rect.top = top
         self.tech_sprite_lower = Floor(self.rect.width - 34,self.rect.left + 17,self.rect.top - 1)
-        self.tech_sprite_upper = Floor(self.rect.width - 34,self.rect.left + 17,self.rect.top - 51)
-        #dimensions of the character sprite + some space for falspeed
+        self.tech_sprite_upper = Floor(self.rect.width - 34,self.rect.left + 17,self.rect.top - 51) #dimensions of the character sprite + some space for falspeed
 
 class Coin(pygame.sprite.Sprite):
     def __init__(self,left,top):
@@ -55,6 +55,55 @@ class Coin(pygame.sprite.Sprite):
         if self.wait == 1:
             self.rect.left -= 3
 
+class Rock (pygame.sprite.Sprite):
+
+    def __init__ (self, left, anticipation, speed):
+        pygame.sprite.Sprite.__init__(self)
+        self.frames = [pygame.image.load('res/rock1.png'),pygame.image.load('res/rock2.png')]
+        self.image = self.frames[0]
+        self.rect = self.image.get_rect()
+        self.rect.left = left
+        self.init = left
+        self.rect.top = -self.rect.height/2
+        self.anticipation = anticipation
+        self.anticipated = 0
+        self.vy = 0
+        self.speed = speed
+        self.shakewait = 0
+    
+    def shake(self):
+        k = randint(0,5)
+        if self.shakewait == 1:
+            self.rect.left += k
+        elif self.shakewait == 3:
+            self.rect.left -= k
+        self.shakewait += 1
+        self.shakewait %= 4
+
+
+    def red(self):
+        self.image = self.frames[1]
+        
+    def fall(self):
+        self.rect.left = self.init
+        self.image = self.frames[0]
+        self.vy = self.speed
+    
+
+    def update (self):
+        
+        if self.anticipated in range (self.anticipation/3, self.anticipation):
+            self.shake()
+        if self.anticipated  in range (self.anticipation * 2 /3, self.anticipation):
+            self.red ()
+        elif self.anticipated > self.anticipation and self.rect.top < 300:
+            self.fall()
+        else:
+            self.vy = 0
+            
+        self.anticipated += 1
+        self.rect.top += self.vy
+
 
 
 class Aladdin (pygame.sprite.Sprite):
@@ -64,11 +113,7 @@ class Aladdin (pygame.sprite.Sprite):
     def __init__ (self):
         pygame.sprite.Sprite.__init__(self)
         self.stay = pygame.image.load('res/aladdin.png')
-        self.frames = [pygame.image.load('res/aladdin.png'),\
-                       pygame.image.load('res/aladdin1.png'),pygame.image.load('res/aladdin2.png'),\
-                       pygame.image.load('res/aladdin3.png'),pygame.image.load('res/aladdin4.png'),\
-                       pygame.image.load('res/aladdin5.png'),pygame.image.load('res/aladdin6.png'),\
-                       pygame.image.load('res/aladdin7.png'),pygame.image.load('res/aladdin8.png')]
+        self.frames = [pygame.image.load('res/aladdin.png'),pygame.image.load('res/aladdin1.png'),pygame.image.load('res/aladdin2.png'),pygame.image.load('res/aladdin3.png'),pygame.image.load('res/aladdin4.png'),pygame.image.load('res/aladdin5.png'),pygame.image.load('res/aladdin6.png'),pygame.image.load('res/aladdin7.png'),pygame.image.load('res/aladdin8.png')]
         self.frame = 0
         self.image = self.stay
 
@@ -99,6 +144,8 @@ class Aladdin (pygame.sprite.Sprite):
         self.mesrect1=self.message1.get_rect()
         self.mesrect1.topleft = (373,269)
         Aladdin.coins = 0
+        self.rocks = []
+        self.rockfrequency = 1
         
 
 
@@ -118,7 +165,7 @@ class Aladdin (pygame.sprite.Sprite):
                 self.jumping = False
 
         
-        if self.x + self.vx in range (0,533 - self.rect.width):
+        if self.x + self.vx in range (0 - self.speed,533 - self.rect.width + self.speed):
             self.x += self.vx
             
         
@@ -144,11 +191,20 @@ class Aladdin (pygame.sprite.Sprite):
         self.rect.top = self.y
         self.message = self.text.render('Coins collected: ' + str(Aladdin.coins) + '/5', False, (255,255,255))
         self.t= time.time() - self.start
+        self.rockfrequency += 1
+        self.rockfrequency %= 50
+        if self.rockfrequency == 0:
+            self.rockrandom = randint (0, 500)
+            self.rocks.append(Rock(self.rockrandom, 50, 10))
+            rocks.add(self.rocks.pop())
+            
         self.message1 = self.text1.render('Time: ' + str(round(self.t,1)), False, (255,255,255))
+        
 
         
 
 def main():
+    global rocks
 #initializing the graphics
     pygame.init()
     pygame.font.init()
@@ -177,6 +233,7 @@ def main():
     #to put coins on platforms: (x+16,x - 18)
     sprites = pygame.sprite.Group(platforms,coins)
     character = pygame.sprite.Group(aladdin)
+    rocks = pygame.sprite.Group()
 
     #technical sprites for platforms
     """
@@ -189,17 +246,23 @@ def main():
         
 
 #music
-    """
+    
     pygame.mixer.music.load('res/background.mp3')
     pygame.mixer.music.play(-1, 0.0)
-    """
+    
 
 #main game loop
     while running:
-        
+    
+        if pygame.sprite.spritecollideany(aladdin, rocks):#quit if the character's killed
+                running = False
+                pygame.mixer.music.stop()
+                pygame.font.quit()
+                pygame.quit()
+                sys.exit()
         
         for event in pygame.event.get():
-            if event.type == QUIT:
+            if event.type == QUIT: 
                 running = False
                 pygame.mixer.music.stop()
                 pygame.font.quit()
@@ -257,10 +320,13 @@ def main():
         screen.blit(bg, (0,0))
         sprites.clear(screen,bg)
         character.clear(screen,bg)
+        rocks.clear(screen,bg)
         sprites.update()
         character.update()
+        rocks.update()
         sprites.draw(screen)
         character.draw(screen)
+        rocks.draw(screen)
         screen.blit(aladdin.message,aladdin.mesrect)
         screen.blit(aladdin.message1,aladdin.mesrect1)
 
