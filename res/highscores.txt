@@ -3,3 +3,5 @@ test:1000
 test:1000
 test:1000
 test:1000
+OLEG:88.6
+OLEG1243:7.0
