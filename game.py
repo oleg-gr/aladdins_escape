@@ -180,9 +180,9 @@ class Aladdin (pygame.sprite.Sprite):
         self.start = time.time()
         self.paused = time.time() - time.time() #to make it 0 in time format
         self.t= time.time()
-        self.text = pygame.font.Font('res/font/04B_03__.ttf', 14)
-        self.text1 = pygame.font.Font('res/font/04B_03__.ttf', 10)
-        self.text2 = pygame.font.Font('res/font/04B_03__.ttf', 96)
+        self.text = pygame.font.Font('res/font/04B_03__.TTF', 14)
+        self.text1 = pygame.font.Font('res/font/04B_03__.TTF', 10)
+        self.text2 = pygame.font.Font('res/font/04B_03__.TTF', 96)
         self.warning = self.text.render('', False, (255,0,0))
         self.message = self.text.render('', False, (255,255,255))
         self.message1 = self.text.render('', False, (255,255,255))
@@ -396,8 +396,8 @@ def main():
 
 #to collect total time
     times = []
-    text = pygame.font.Font('res/font/04B_03__.ttf', 20)
-    text_big = pygame.font.Font('res/font/04B_03__.ttf', 22)
+    text = pygame.font.Font('res/font/04B_03__.TTF', 20)
+    text_big = pygame.font.Font('res/font/04B_03__.TTF', 22)
 #name of the player
     letters = []
 
